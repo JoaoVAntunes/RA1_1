@@ -1,8 +1,11 @@
+from Exception import ErroLexico
+
 # ==========================================
 # ESTADO INICIAL - DISPATCHER
 
 def estado_inicial(linha, i, lexema, tokens):
     if i >= len(linha):
+        print(f"    [estado_inicial FIM] i={i} >= len={len(linha)}, lexema={repr(lexema)}")
         return estado_inicial, i + 1, lexema, tokens  # Fim da execução
     
     char = linha[i]
@@ -21,7 +24,8 @@ def estado_inicial(linha, i, lexema, tokens):
         return estado_inicial, i + 1, "", tokens
     
     if char == "(" or char == ")":
-        return estado_parenteses, i +1, char, tokens
+        print(f"      [estado_inicial] detectou parêntese {repr(char)} em i={i}")
+        return estado_parenteses, i, char, tokens
     
     # Divisão (precisa lookahead para // vs /)
     if char == "/":
@@ -140,11 +144,15 @@ def estado_barra(linha, i, lexema, tokens):
 # ==========================================
 
 def estado_parenteses(linha, i, lexema, tokens):
+    print(f"      [estado_parenteses] lexema={repr(lexema)}, i={i}")
     if lexema == "(":
         tokens.append(("L_PARENTESES", lexema))
+        print(f"        -> adicionou token: ('L_PARENTESES', {repr(lexema)})")
     else:
         tokens.append(("R_PARENTESES", lexema))
-    return estado_inicial, i, "", tokens
+        print(f"        -> adicionou token: ('R_PARENTESES', {repr(lexema)})")
+    print(f"        -> retornando: i={i+1}, estado=estado_inicial")
+    return estado_inicial, i + 1, "", tokens
 
 
 def estado_R(linha, i, lexema, tokens):
@@ -235,15 +243,11 @@ def estado_variavel(linha, i, lexema, tokens):
 # ESTADO DE ERRO
 # ==========================================
 def estado_erro(linha, i, lexema, tokens):
-    """Pula caracteres até encontrar um delimitador"""
     if i >= len(linha):
         return estado_inicial, i, "", tokens
-    
+
     char = linha[i]
-    
-    # Para em espaço, parênteses ou operadores
     if char in " \t\n()+-*/%^":
         return estado_inicial, i, "", tokens
-    
-    # Pula para o próximo caractere
-    return estado_erro, i + 1, "", tokens
+
+    raise ErroLexico(f"Caractere inválido: {char}", i)
