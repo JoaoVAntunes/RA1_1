@@ -64,6 +64,8 @@ class GeradorAssembly:
         self.stack_ptr = 0  # Reset apenas do stack_ptr
         codigo_expr = []
         
+        stack_simulada = []
+        
         for token in tokens:
             tipo, valor = token
             
@@ -118,13 +120,32 @@ class GeradorAssembly:
                 codigo_expr.append(f"    ldr r0, ={label}")
                 codigo_expr.append(f"    vldr {reg}, [r0]")
             
+
             elif tipo == 'COMANDO_RES':
-                # RES: Carregar resultado anterior
-                # Formato: (N RES) onde N é número anterior
                 if self.stack_ptr < 1:
                     raise ErroLexico("RES requer número anterior", "Unknown position")
-                # TODO: Implementar indexação em resultados_list
-                pass
+
+                self.stack_ptr -= 1
+                d_index = f"d{self.stack_ptr}"
+
+            
+
+                if not resultados_list:
+                    raise ErroLexico("RES sem histórico de resultados", "Unknown position")
+
+                n = int(resultados_list[-1]) if resultados_list else 1
+
+                if n <= 0 or n > len(resultados_list):
+                    raise ErroLexico(f"RES inválido: {n}", "Unknown position")
+
+                valor = float(resultados_list[-n])
+                label = self.gerar_label_constante(valor)
+
+                reg = self.registrador_disponivel()
+
+                codigo_expr.append(f"    @ RES ({n})")
+                codigo_expr.append(f"    ldr r0, ={label}")
+                codigo_expr.append(f"    vldr {reg}, [r0]")
         
         # Resultado final está em d0
         if self.stack_ptr != 1:

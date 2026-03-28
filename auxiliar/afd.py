@@ -37,9 +37,7 @@ def estado_inicial(linha, i, lexema, tokens):
     elif char.isupper():
         return estado_variavel, i + 1, char, tokens
     
-    # Erro léxico
-    tokens.append(("ERRO", f"Caractere inválido: {char}", i))
-    return estado_erro, i + 1, "", tokens
+    return estado_erro, i, "", tokens
 
 
 # ==========================================
@@ -72,7 +70,6 @@ def estado_ponto(linha, i, lexema, tokens):
     """Valida que há dígito após o ponto"""
     if i >= len(linha):
         # Ponto no final - erro
-        tokens.append(("ERRO", f"Número inválido: {lexema} (ponto sem dígitos)"))
         return estado_erro, i, "", tokens
     
     char = linha[i]
@@ -83,12 +80,10 @@ def estado_ponto(linha, i, lexema, tokens):
     
     elif char == ".":
         # Ponto duplo - erro
-        tokens.append(("ERRO", f"Número inválido: {lexema}. (múltiplos pontos)"))
-        return estado_erro, i + 1, "", tokens
+        return estado_erro, i, "", tokens
     
     else:
         # Ponto sem dígito depois - erro
-        tokens.append(("ERRO", f"Número inválido: {lexema} (ponto sem dígitos)"))
         return estado_erro, i, "", tokens
 
 
@@ -107,8 +102,7 @@ def estado_decimal(linha, i, lexema, tokens):
     
     elif char == ".":
         # Ponto duplo - erro
-        tokens.append(("ERRO", f"Número inválido: {lexema} (múltiplos pontos)"))
-        return estado_erro, i + 1, "", tokens
+        return estado_erro, i, "", tokens
     
     else:
         # Fim do número - sem avançar (lookahead)
@@ -242,11 +236,4 @@ def estado_variavel(linha, i, lexema, tokens):
 # ESTADO DE ERRO
 # ==========================================
 def estado_erro(linha, i, lexema, tokens):
-    if i >= len(linha):
-        return estado_inicial, i, "", tokens
-
-    char = linha[i]
-    if char in " \t\n()+-*/%^":
-        return estado_inicial, i, "", tokens
-
-    raise ErroLexico(f"Caractere inválido: {char}", i)
+    raise ErroLexico(f"Caractere inválido: {linha[i]}", i)
