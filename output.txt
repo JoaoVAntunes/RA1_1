@@ -1,0 +1,58 @@
+.global main
+main:
+    push {r4-r11, lr}
+    sub sp, sp, #8
+
+    @ Expressão 0
+    ldr r0, =const_0
+    vldr d0, [r0]
+    ldr r0, =const_0
+    vldr d1, [r0]
+    vadd.f64 d0, d0, d1
+    ldr r0, =result_0
+    vstr d0, [r0]
+
+    @ Expressão 1
+    ldr r0, =const_1
+    vldr d0, [r0]
+    ldr r0, =const_2
+    vldr d1, [r0]
+    vsub.f64 d0, d0, d1
+    ldr r0, =result_1
+    vstr d0, [r0]
+
+    @ Expressão 2
+    ldr r0, =const_3
+    vldr d0, [r0]
+    ldr r0, =const_2
+    vldr d1, [r0]
+    vmul.f64 d0, d0, d1
+    ldr r0, =result_2
+    vstr d0, [r0]
+
+    @ Expressão 3
+    ldr r0, =const_4
+    vldr d0, [r0]
+    ldr r0, =const_0
+    vldr d1, [r0]
+    vdiv.f64 d0, d0, d1
+    ldr r0, =result_3
+    vstr d0, [r0]
+
+    add sp, sp, #8
+    pop {r4-r11, lr}
+    b end
+end: b end
+
+.data
+    const_0: .double 2.0
+    const_1: .double 5.0
+    const_2: .double 3.0
+    const_3: .double 4.0
+    const_4: .double 8.0
+    result_history: .space 800  @ 100 doubles
+    result_count: .word 0
+    result_0: .space 8
+    result_1: .space 8
+    result_2: .space 8
+    result_3: .space 8

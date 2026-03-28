@@ -1,11 +1,11 @@
-from Exception import ErroLexico
+from auxiliar.Exception import ErroLexico
 
 # ==========================================
 # ESTADO INICIAL - DISPATCHER
 
 def estado_inicial(linha, i, lexema, tokens):
     if i >= len(linha):
-        print(f"    [estado_inicial FIM] i={i} >= len={len(linha)}, lexema={repr(lexema)}")
+        #print(f"    [estado_inicial FIM] i={i} >= len={len(linha)}, lexema={repr(lexema)}")
         return estado_inicial, i + 1, lexema, tokens  # Fim da execução
     
     char = linha[i]
@@ -24,7 +24,7 @@ def estado_inicial(linha, i, lexema, tokens):
         return estado_inicial, i + 1, "", tokens
     
     if char == "(" or char == ")":
-        print(f"      [estado_inicial] detectou parêntese {repr(char)} em i={i}")
+        #print(f"      [estado_inicial] detectou parêntese {repr(char)} em i={i}")
         return estado_parenteses, i, char, tokens
     
     # Divisão (precisa lookahead para // vs /)
@@ -151,7 +151,6 @@ def estado_parenteses(linha, i, lexema, tokens):
     else:
         tokens.append(("R_PARENTESES", lexema))
         print(f"        -> adicionou token: ('R_PARENTESES', {repr(lexema)})")
-    print(f"        -> retornando: i={i+1}, estado=estado_inicial")
     return estado_inicial, i + 1, "", tokens
 
 
