@@ -6,37 +6,132 @@ main:
     @ Expressão 0
     ldr r0, =const_0
     vldr d0, [r0]
-    ldr r0, =const_0
+    ldr r0, =const_1
     vldr d1, [r0]
     vadd.f64 d0, d0, d1
     ldr r0, =result_0
     vstr d0, [r0]
 
     @ Expressão 1
-    ldr r0, =const_1
-    vldr d0, [r0]
     ldr r0, =const_2
+    vldr d0, [r0]
+    ldr r0, =const_3
     vldr d1, [r0]
-    vsub.f64 d0, d0, d1
+    vmul.f64 d0, d0, d1
     ldr r0, =result_1
     vstr d0, [r0]
 
     @ Expressão 2
-    ldr r0, =const_3
+    ldr r0, =const_4
     vldr d0, [r0]
-    ldr r0, =const_2
-    vldr d1, [r0]
-    vmul.f64 d0, d0, d1
+    @ RES
+    ldr r0, =const_5
+    vldr d0, [r0]
     ldr r0, =result_2
     vstr d0, [r0]
 
     @ Expressão 3
-    ldr r0, =const_4
+    ldr r0, =const_6
     vldr d0, [r0]
-    ldr r0, =const_0
+    ldr r1, =var_VARA
+    vstr d0, [r1]
+    ldr r0, =result_3
+    vstr d0, [r0]
+
+    @ Expressão 4
+    ldr r0, =var_VARA
+    vldr d0, [r0]
+    ldr r0, =result_4
+    vstr d0, [r0]
+
+    @ Expressão 5
+    ldr r0, =const_5
+    vldr d0, [r0]
+    ldr r0, =const_3
     vldr d1, [r0]
     vdiv.f64 d0, d0, d1
-    ldr r0, =result_3
+    ldr r0, =result_5
+    vstr d0, [r0]
+
+    @ Expressão 6
+    ldr r0, =const_7
+    vldr d0, [r0]
+    ldr r0, =const_1
+    vldr d1, [r0]
+    vsub.f64 d0, d0, d1
+    ldr r0, =result_6
+    vstr d0, [r0]
+
+    @ Expressão 7
+    ldr r0, =const_8
+    vldr d0, [r0]
+    ldr r0, =const_1
+    vldr d1, [r0]
+    vdiv.f64 d0, d0, d1
+    vcvt.s32.f64 s16, d0
+    vcvt.f64.s32 d0, s16
+    ldr r0, =result_7
+    vstr d0, [r0]
+
+    @ Expressão 8
+    ldr r0, =const_8
+    vldr d0, [r0]
+    ldr r0, =const_1
+    vldr d1, [r0]
+    vdiv.f64 d0, d0, d1
+    vcvt.s32.f64 s16, d0
+    vcvt.f64.s32 d0, s16
+    vmul.f64 d0, d0, d1
+    vsub.f64 d0, d0, d0
+    ldr r0, =result_8
+    vstr d0, [r0]
+
+    @ Expressão 9
+    ldr r0, =const_3
+    vldr d0, [r0]
+    ldr r0, =const_2
+    vldr d1, [r0]
+    vcvt.s32.f64 s16, d1
+    vmov r2, s16
+    vmov.f64 d1, d0
+    subs r2, r2, #1
+    ble pow_done_0
+pow_loop_0:
+    vmul.f64 d0, d0, d1
+    subs r2, r2, #1
+    bgt pow_loop_0
+pow_done_0:
+    ldr r0, =result_9
+    vstr d0, [r0]
+
+    @ Expressão 10
+    ldr r0, =const_1
+    vldr d0, [r0]
+    ldr r0, =const_3
+    vldr d1, [r0]
+    vadd.f64 d0, d0, d1
+    ldr r0, =const_2
+    vldr d1, [r0]
+    ldr r0, =const_9
+    vldr d2, [r0]
+    vadd.f64 d1, d1, d2
+    vmul.f64 d0, d0, d1
+    ldr r0, =result_10
+    vstr d0, [r0]
+
+    @ Expressão 11
+    ldr r0, =const_10
+    vldr d0, [r0]
+    ldr r0, =const_1
+    vldr d1, [r0]
+    vdiv.f64 d0, d0, d1
+    ldr r0, =const_3
+    vldr d1, [r0]
+    ldr r0, =const_3
+    vldr d2, [r0]
+    vadd.f64 d1, d1, d2
+    vmul.f64 d0, d0, d1
+    ldr r0, =result_11
     vstr d0, [r0]
 
     add sp, sp, #8
@@ -45,14 +140,29 @@ main:
 end: b end
 
 .data
-    const_0: .double 2.0
-    const_1: .double 5.0
-    const_2: .double 3.0
-    const_3: .double 4.0
-    const_4: .double 8.0
+    const_0: .double 8.0
+    const_1: .double 2.0
+    const_2: .double 4.0
+    const_3: .double 3.0
+    const_4: .double 1.0
+    const_5: .double 12.0
+    const_6: .double 15.0
+    const_7: .double 7.0
+    const_8: .double 6.0
+    const_9: .double 5.0
+    const_10: .double 10.0
+    var_VARA: .double 0.0
     result_history: .space 800  @ 100 doubles
     result_count: .word 0
     result_0: .space 8
     result_1: .space 8
     result_2: .space 8
     result_3: .space 8
+    result_4: .space 8
+    result_5: .space 8
+    result_6: .space 8
+    result_7: .space 8
+    result_8: .space 8
+    result_9: .space 8
+    result_10: .space 8
+    result_11: .space 8

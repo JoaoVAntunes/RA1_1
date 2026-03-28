@@ -14,6 +14,7 @@ class GeradorAssembly:
         self.num_vars = 0
         self.num_expressoes = 0  # Contador para nomes de buffers de resultado
         self.labels_resultado = []  # Lista de labels de resultado gerados
+        self.num_power_labels = 0  # Contador para labels de potência (loops)
         
     def gerar_label_constante(self, valor):
         """Gera label único para constante e armazena."""
@@ -63,18 +64,31 @@ class GeradorAssembly:
         """
         self.stack_ptr = 0  # Reset apenas do stack_ptr
         codigo_expr = []
-        
+
+        # Simula valores para manter a semântica de RES alinhada ao avaliador RPN.
         stack_simulada = []
+        historico_disponivel = resultados_list[:self.num_expressoes]
         
-        for token in tokens:
+        rpn_tokens = [tok for tok in tokens if tok[0] not in ('L_PARENTESES', 'R_PARENTESES')]
+        eh_atrib = bool(rpn_tokens) and rpn_tokens[-1][0] == 'VARIAVEL'
+        var_atrib = rpn_tokens[-1][1] if eh_atrib and len(rpn_tokens) > 1 else None
+
+        if eh_atrib and len(rpn_tokens) > 1:
+            tokens_processar = rpn_tokens[:-1]
+        else:
+            tokens_processar = rpn_tokens
+
+        for token in tokens_processar:
             tipo, valor = token
             
             if tipo == 'NUMERO':
                 # Carregar número como constante
-                label = self.gerar_label_constante(float(valor))
+                valor_float = float(valor)
+                label = self.gerar_label_constante(valor_float)
                 reg = self.registrador_disponivel()
                 codigo_expr.append(f"    ldr r0, ={label}")
                 codigo_expr.append(f"    vldr {reg}, [r0]")
+                stack_simulada.append(valor_float)
             
             elif tipo == 'OPERADOR':
                 # Aplicar operação
@@ -95,23 +109,61 @@ class GeradorAssembly:
                 elif valor == '/':
                     codigo_expr.append(f"    vdiv.f64 {d_dst}, {d_src1}, {d_src2}")
                 elif valor == '//':
-                    # Divisão inteira
-                    codigo_expr.append(f"    vcvt.s32.f64 s0, {d_src1}")
-                    codigo_expr.append(f"    vcvt.s32.f64 s1, {d_src2}")
-                    codigo_expr.append(f"    sdiv r0, r1")
-                    codigo_expr.append(f"    vcvt.f64.s32 {d_dst}, s0")
+                    # Divisão inteira via VFP: divide, trunca para int, volta para double
+                    codigo_expr.append(f"    vdiv.f64 {d_dst}, {d_src1}, {d_src2}")
+                    codigo_expr.append(f"    vcvt.s32.f64 s16, {d_dst}")
+                    codigo_expr.append(f"    vcvt.f64.s32 {d_dst}, s16")
                 elif valor == '%':
-                    # Resto
-                    codigo_expr.append(f"    vcvt.s32.f64 s0, {d_src1}")
-                    codigo_expr.append(f"    vcvt.s32.f64 s1, {d_src2}")
-                    codigo_expr.append(f"    sdiv r0, r1")
-                    codigo_expr.append(f"    mls r0, r0, r2, r1")
-                    codigo_expr.append(f"    vcvt.f64.s32 {d_dst}, s0")
+                    # Resto via VFP: a - floor(a/b)*b
+                    codigo_expr.append(f"    vdiv.f64 {d_dst}, {d_src1}, {d_src2}")
+                    codigo_expr.append(f"    vcvt.s32.f64 s16, {d_dst}")
+                    codigo_expr.append(f"    vcvt.f64.s32 {d_dst}, s16")
+                    codigo_expr.append(f"    vmul.f64 {d_dst}, {d_dst}, {d_src2}")
+                    codigo_expr.append(f"    vsub.f64 {d_dst}, {d_src1}, {d_dst}")
                 elif valor == '^':
-                    codigo_expr.append(f"    ; Potência (^ não implementada)")
+                    # Potência: base^exp (exp inteiro positivo), loop de multiplicação
+                    lbl = self.num_power_labels
+                    self.num_power_labels += 1
+                    codigo_expr.append(f"    vcvt.s32.f64 s16, {d_src2}")
+                    codigo_expr.append(f"    vmov r2, s16")
+                    codigo_expr.append(f"    vmov.f64 {d_src2}, {d_src1}")
+                    codigo_expr.append(f"    subs r2, r2, #1")
+                    codigo_expr.append(f"    ble pow_done_{lbl}")
+                    codigo_expr.append(f"pow_loop_{lbl}:")
+                    codigo_expr.append(f"    vmul.f64 {d_dst}, {d_dst}, {d_src2}")
+                    codigo_expr.append(f"    subs r2, r2, #1")
+                    codigo_expr.append(f"    bgt pow_loop_{lbl}")
+                    codigo_expr.append(f"pow_done_{lbl}:")
                 
                 # Remove um elemento do stack (o segundo operando)
                 self.stack_ptr -= 1
+
+                if len(stack_simulada) < 2:
+                    raise ErroLexico(f"Insuficientes valores simulados para operação {valor}", "Unknown position")
+
+                b = stack_simulada.pop()
+                a = stack_simulada.pop()
+
+                if valor == '+':
+                    stack_simulada.append(a + b)
+                elif valor == '-':
+                    stack_simulada.append(a - b)
+                elif valor == '*':
+                    stack_simulada.append(a * b)
+                elif valor == '/':
+                    if b == 0:
+                        raise ZeroDivisionError('Divisão por zero')
+                    stack_simulada.append(a / b)
+                elif valor == '//':
+                    if b == 0:
+                        raise ZeroDivisionError('Divisão inteira por zero')
+                    stack_simulada.append(float(a // b))
+                elif valor == '%':
+                    if b == 0:
+                        raise ZeroDivisionError('Resto por zero')
+                    stack_simulada.append(float(a % b))
+                elif valor == '^':
+                    stack_simulada.append(float(a ** b))
             
             elif tipo == 'VARIAVEL':
                 # Carregar variável
@@ -119,37 +171,40 @@ class GeradorAssembly:
                 reg = self.registrador_disponivel()
                 codigo_expr.append(f"    ldr r0, ={label}")
                 codigo_expr.append(f"    vldr {reg}, [r0]")
+                stack_simulada.append(float(memoria_dict.get(valor, 0.0)))
             
 
             elif tipo == 'COMANDO_RES':
-                if self.stack_ptr < 1:
-                    raise ErroLexico("RES requer número anterior", "Unknown position")
+                if stack_simulada:
+                    n = int(stack_simulada.pop())
+                    if self.stack_ptr < 1:
+                        raise ErroLexico("RES requer número anterior", "Unknown position")
+                    self.stack_ptr -= 1
 
-                self.stack_ptr -= 1
-                d_index = f"d{self.stack_ptr}"
+                    if n <= 0 or n > len(historico_disponivel):
+                        raise ErroLexico(f"RES inválido: {n}", "Unknown position")
 
-            
+                    valor = float(historico_disponivel[-n])
+                else:
+                    valor = float(historico_disponivel[-1]) if historico_disponivel else 0.0
 
-                if not resultados_list:
-                    raise ErroLexico("RES sem histórico de resultados", "Unknown position")
-
-                n = int(resultados_list[-1]) if resultados_list else 1
-
-                if n <= 0 or n > len(resultados_list):
-                    raise ErroLexico(f"RES inválido: {n}", "Unknown position")
-
-                valor = float(resultados_list[-n])
                 label = self.gerar_label_constante(valor)
 
                 reg = self.registrador_disponivel()
 
-                codigo_expr.append(f"    @ RES ({n})")
+                codigo_expr.append(f"    @ RES")
                 codigo_expr.append(f"    ldr r0, ={label}")
                 codigo_expr.append(f"    vldr {reg}, [r0]")
+                stack_simulada.append(valor)
         
         # Resultado final está em d0
         if self.stack_ptr != 1:
             raise ErroLexico(f"Expressão RPN inválida (stack final: {self.stack_ptr})", "Unknown position")
+
+        if var_atrib is not None:
+            label_var = self.gerar_label_variavel(var_atrib)
+            codigo_expr.append(f"    ldr r1, ={label_var}")
+            codigo_expr.append(f"    vstr d0, [r1]")
         
         # Gerar label para esta expressão e acumular código
         label_resultado = self.gerar_label_resultado()
